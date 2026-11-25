@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101b32">
+  <title>LAFVIN Robot · BLE Joystick and CSV Manager</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e9f0ff;background:#0b1222;color-scheme:dark;--amber:#ffc61a;--danger:#e65e69}
+    *{box-sizing:border-box}body{margin:0;padding:18px 14px max(22px,env(safe-area-inset-bottom));min-height:100vh;background:radial-gradient(ellipse 80% 40% at 50% -5%,#233c67,#0b1222 75%)}
+    main{max-width:460px;margin:0 auto}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 2px 18px}
+    .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8da6d3;font-weight:800}.head h1{font-size:23px;line-height:1.12;margin:5px 0 0}.small{font-size:12px;color:#a5b3ce}
+    .pill{border:1px solid #445374;border-radius:40px;padding:7px 9px;font-size:11px;font-weight:800;white-space:nowrap;color:#e7ba75;background:#222d42}
+    .pill.connected{border-color:#2c805b;color:#89e5b9;background:#143d30}
+    .card{border:1px solid #2e3d57;background:rgba(22,34,55,.94);border-radius:14px;padding:17px;margin-bottom:13px;box-shadow:0 8px 26px #03070d33}
+    .label{color:#a9b9d6;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px}
+    button,.filebtn{cursor:pointer;touch-action:manipulation;border:1px solid #435873;border-radius:10px;background:#273650;color:#f2f5ff;font-size:14px;padding:12px 10px;font-weight:800;font-family:inherit;min-height:44px}
+    button:disabled{opacity:.43;cursor:not-allowed}.btnprimary{background:#397df1;border-color:#478cff}.btnstop{width:100%;background:#a82b40;border-color:#e65e69;box-shadow:inset 0 -2px 0 #651320;font-size:19px;letter-spacing:.06em;padding:17px}
+    .btndanger{background:#3a1820;border-color:var(--danger);color:#ffd5d9}.btndanger.solid{background:#a82b40;color:#fff}
+    :focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+    .connectrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seg button.active{border-color:#61a0ff;background:#284e8f;color:white}
+    .joywrap{display:flex;flex-direction:column;align-items:center;gap:8px;user-select:none;-webkit-user-select:none}.joyzone{position:relative;width:min(72vw,310px);aspect-ratio:1;touch-action:none;border-radius:50%;border:2px solid #476080;background:radial-gradient(circle at 35% 25%,#33486c,#1a2844 55%,#111b31);box-shadow:inset 0 0 0 2px #16253b,inset 0 16px 34px #111927,0 8px 24px #0b1022;overflow:hidden}
+    .axisx,.axisy{position:absolute;background:#5e779e4a;pointer-events:none}.axisx{height:2px;left:14%;right:14%;top:50%}.axisy{width:2px;top:14%;bottom:14%;left:50%}
+    .ring{position:absolute;inset:19%;border-radius:50%;border:1px dashed #6683a477;pointer-events:none}.thumb{position:absolute;left:50%;top:50%;width:75px;height:75px;transform:translate(-50%,-50%);background:linear-gradient(145deg,#73b0ff,#2365dd);border:4px solid #c7e2ff;border-radius:50%;box-shadow:0 8px 18px #07152dc0,0 0 0 10px #3d85ee20;pointer-events:none;display:grid;place-items:center}
+    .thumb:after{content:"✥";font-size:26px;color:#dbeaff}.arrow{position:absolute;font-size:20px;color:#a4b8d9;pointer-events:none}.up{top:14px;left:calc(50% - 8px)}.down{bottom:12px;left:calc(50% - 8px)}.left{left:14px;top:calc(50% - 14px)}.right{right:14px;top:calc(50% - 14px)}
+    .values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}.value{border:1px solid #304158;background:#0f1a2e;border-radius:10px;text-align:center;padding:8px 6px}.value .title{font-size:10px;color:#9dafce;margin-bottom:3px}.value b{font-size:18px;line-height:1.4}
+    .motorrow{display:grid;grid-template-columns:1fr 1fr;gap:9px}.motor{border-radius:10px;padding:12px;background:#0d192e;border:1px solid #304158}.motor .mvalue{font-size:18px;font-weight:800;margin-top:3px}
+    .activity{font-family:ui-monospace,Consolas,monospace;border-radius:8px;background:#0b1525;padding:9px 11px;font-size:11px;color:#a7c7f9;min-height:34px;overflow-wrap:anywhere}
+    .helper{line-height:1.5;color:#a9b9d6;font-size:12px}.warning{border-left:3px solid #ffc06e;padding-left:10px}.footer{font-size:11px;color:#8192ad;text-align:center;margin:15px 4px}
+    .progress-wrap{display:block;margin-top:13px}.progress-meta{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:11px;color:#a9b9d6}.progress-track{height:12px;width:100%;overflow:hidden;border-radius:99px;background:#0b1525;border:1px solid #344764}.progress-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#397df1,#62b6ff);transition:width .15s ease}.progress-fill.indeterminate{width:35%;animation:progressMove 1.1s ease-in-out infinite}.progress-fill.failed{background:#e65e69}.progress-fill.complete{background:#39b980}@keyframes progressMove{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+    .fw{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:#0f1a2e;border:1px solid #304158;font-size:12px;line-height:1.45;color:#c9d6ee}.fw.ok{border-color:#2c805b;color:#a6ecc8}.fw.no{border-color:#7a5b23;color:#f2d29b}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .filebtn{display:flex;align-items:center;justify-content:center;text-align:center}.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+    .filebtn:focus-within{outline:3px solid var(--amber);outline-offset:2px}
+    .summary{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:#c9d6ee;margin-bottom:10px}.summary b{color:#fff}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}.toolbar button{padding:8px 12px;min-height:40px;font-size:13px}
+    .selcount{margin-left:auto;font-size:12px;font-weight:800;color:var(--amber)}
+    .tablewrap{max-height:380px;overflow:auto;border:1px solid #304158;border-radius:8px;background:#0b1525}
+    table{border-collapse:collapse;font:12px/1.35 ui-monospace,Consolas,monospace;min-width:100%}
+    th,td{padding:6px 8px;border-bottom:1px solid #1d2a40;text-align:left;white-space:nowrap}
+    thead th{position:sticky;top:0;background:#16233a;color:#cfe0ff;font-weight:700;z-index:1}
+    tbody tr:hover{background:#13213a}tbody tr.sel{background:#3a1820}tbody tr.sel td{color:#ffd5d9}
+    td.num,th.num{color:#7f93b5;text-align:right}
+    .chk{width:20px;height:20px;accent-color:#e65e69}
+    .pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#a9b9d6}.pager button{padding:8px 12px;min-height:40px;font-size:13px}
+    .danger-zone{margin-top:14px;padding-top:12px;border-top:1px dashed #4a3340}
+    .opstatus{margin:10px 0 0;font-size:12.5px;line-height:1.5}.opstatus.ok{color:#89e5b9}.opstatus.err{color:#ff9aa3}
+    .empty{font-size:12.5px;color:#a9b9d6;line-height:1.5;margin:0}
+    dialog{max-width:420px;width:calc(100% - 28px);border:1px solid #5a3a46;border-radius:14px;background:#141f33;color:#e9f0ff;padding:0}
+    dialog::backdrop{background:#03070dcc}
+    .dlg{padding:18px}.dlg h2{margin:0 0 10px;font-size:18px}.dlg p{font-size:13px;line-height:1.5;color:#c9d6ee;margin:0 0 10px}
+    .dlg input[type=text]{width:100%;min-height:44px;border-radius:8px;border:1px solid #435873;background:#0b1525;color:#fff;font:16px ui-monospace,Consolas,monospace;padding:8px 10px}
+    .dlg .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+    @media (min-width:960px){
+      main{max-width:1180px}
+      .layout{display:grid;grid-template-columns:460px minmax(0,1fr);gap:16px;align-items:start}
+      .col-right{position:sticky;top:12px}
+      .tablewrap{max-height:520px}
+    }
+    .game-screen{position:fixed;inset:0;z-index:100;box-sizing:border-box;background:radial-gradient(ellipse 80% 40% at 50% -5%,#233c67,#0b1222 75%);padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:none;flex-direction:column;gap:12px;overflow:hidden}
+    .game-topbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .game-back{padding:10px 14px;font-size:14px}
+    .game-title{font-size:16px;font-weight:800;color:#e9f0ff;text-align:center}
+    .game-topbar-spacer{width:72px}
+    .game-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;overflow:auto}
+    .game-layout{flex:1;min-height:0;display:flex;gap:16px;align-items:stretch;justify-content:space-between}
+    .game-steer,.game-drive{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;justify-content:center;align-items:center}
+    .wheel-wrap{width:min(38vh,42vw,220px);aspect-ratio:1;max-width:240px}
+    .steer-wheel{width:100%;height:100%;border-radius:50%;border:4px solid #5a769b;background:radial-gradient(circle at 35% 30%,#3a5174,#1a2942 60%,#101b31);box-shadow:inset 0 0 0 8px #22344f,0 8px 18px #08101e;position:relative;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;transition:transform .08s linear}
+    .steer-wheel:active{cursor:grabbing}
+    .steer-wheel::before{content:"";position:absolute;inset:16%;border-radius:50%;border:2px dashed #6a86ab66}
+    .wheel-mark{position:absolute;left:50%;top:7%;width:10px;height:26%;transform:translateX(-50%);border-radius:8px;background:#7fc0ff;box-shadow:0 0 8px #4ea8ff88}
+    .game-drive-btn{width:100%;max-width:260px;min-height:76px;padding:18px 10px;font-size:18px;font-weight:800;background:#1f6b45;border-color:#39b980}
+    .game-drive-btn.reverse{background:#7a2438;border-color:#d35d6b}
+    .game-drive-btn.active-drive{filter:brightness(1.15);transform:scale(.99)}
+    .game-servo{border:1px solid #2e3d57;background:rgba(22,34,55,.94);border-radius:16px;padding:12px 14px}
+    #servoSlider{accent-color:#62b6ff}
+    @media (orientation: landscape){.game-body{justify-content:space-between}.game-layout{align-items:center}}
+    @media (max-width:420px) and (orientation: portrait){.game-layout{gap:10px}.wheel-wrap{width:min(44vw,180px)}.game-drive-btn{min-height:64px;font-size:16px}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="head"><div><div class="eyebrow">LAFVIN · Arduino Uno</div><h1>BLE Joystick and CSV Manager</h1></div><span id="status" class="pill">● DISCONNECTED</span></div>
+  <div class="layout">
+  <div class="col-left">
+  <section class="card">
+    <div class="label">JDY-16 connection</div>
+    <div class="connectrow"><button id="connect" class="btnprimary">⌁ Connect BLE</button><button id="disconnect" disabled>Disconnect</button></div>
+    <p class="helper" style="margin:11px 0 0">Android Chrome • JDY-16 • FFE0 service / FFE1 characteristic. Requires an HTTPS-hosted page.</p>
+    <p id="fwStatus" class="fw">File management: connect to check the robot's firmware.</p>
+  </section>
+  <section class="card">
+    <div class="label">Robot operating mode</div>
+    <div class="seg" style="grid-template-columns:1fr 1fr 1fr"><button id="manual" class="active">🎮 MANUAL</button><button id="auto">🤖 AUTO</button><button id="game">🏁 GAME</button></div>
+    <p id="modeHelp" class="helper" style="margin:10px 0 0">Manual: joystick controls differential motor speeds. Obstacle safety stays enabled.</p>
+  </section>
+  <section class="card" id="joystickCard">
+    <div class="label">Two-axis proportional joystick</div>
+    <div class="joywrap"><div id="zone" class="joyzone" aria-label="Joystick touchpad">
+      <div class="axisx"></div><div class="axisy"></div><div class="ring"></div>
+      <div class="arrow up">↑</div><div class="arrow down">↓</div><div class="arrow left">←</div><div class="arrow right">→</div>
+      <div class="thumb" id="thumb"></div>
+    </div><span class="small">Hold and drag to drive · Release to stop</span></div>
+    <div class="values" style="margin-top:13px"><div class="value"><div class="title">X · steer</div><b id="xval">0</b></div><div class="value"><div class="title">Y · throttle</div><b id="yval">0</b></div><div class="value"><div class="title">Direction</div><b id="direction" style="font-size:12px">STOP</b></div></div>
+  </section>
+  <section class="card"><div class="label">Commanded motor speed (approximate)</div><div class="motorrow"><div class="motor"><div class="small">Left motor</div><div id="leftMotor" class="mvalue">STOP</div></div><div class="motor"><div class="small">Right motor</div><div id="rightMotor" class="mvalue">STOP</div></div></div></section>
+  <button id="stop" class="btnstop">■ EMERGENCY STOP</button>
+  <section class="card" style="margin-top:13px"><div class="label">Command activity</div><div id="activity" class="activity">Waiting for Bluetooth connection...</div><p class="helper warning">Protected manual driving is not fully collision-proof: ultrasonic/IR coverage is limited and the robot has no rear obstacle sensor. Test with wheels raised first. A 400 ms joystick timeout and 650 ms link timeout also stop the robot.</p></section>
+  </div>
+
+  <div class="col-right">
+  <section class="card">
+    <div class="label">SD card data</div>
+    <button id="downloadCsv" class="btnprimary" style="width:100%" disabled>⬇ Download CSV Logs</button>
+    <div id="csvProgressWrap" class="progress-wrap" aria-live="polite">
+      <div class="progress-meta"><span id="csvProgressLabel">Ready to download</span><strong id="csvProgressPercent">0%</strong></div>
+      <div id="csvProgressTrack" class="progress-track" role="progressbar" aria-label="CSV download progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="csvProgressFill" class="progress-fill"></div></div>
+    </div>
+    <p id="downloadStatus" class="helper" style="margin:10px 0 0">Connect to the robot to download robot.csv from its SD card.</p>
+    <div class="row2">
+      <label class="filebtn" id="openFileLabel">Open a saved CSV<input id="openFile" type="file" accept=".csv,text/csv"></label>
+      <button id="saveCopy" disabled>Save this copy</button>
+    </div>
+  </section>
+
+  <section class="card" id="previewCard" aria-labelledby="previewTitle">
+    <div class="label" id="previewTitle">CSV preview</div>
+    <p id="previewEmpty" class="empty">Download robot.csv from the robot, or open a saved copy, to see its records here.</p>
+    <div id="previewBody" hidden>
+      <div class="summary" id="previewSummary"></div>
+      <div class="toolbar">
+        <button id="selectAll">Select all</button>
+        <button id="deselectAll">Deselect all</button>
+        <span class="selcount" id="selCount" aria-live="polite">0 selected</span>
+      </div>
+      <div class="tablewrap" id="tableWrap" tabindex="0" aria-label="CSV records, scrollable">
+        <table><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+      </div>
+      <div class="pager"><button id="prevPage">Previous 100</button><span id="pageInfo"></span><button id="nextPage">Next 100</button></div>
+      <div class="danger-zone">
+        <div class="label" style="color:#ff9aa3">Delete data on the robot's SD card</div>
+        <div class="row2" style="margin-top:0">
+          <button id="deleteSelected" class="btndanger" disabled>Delete selected records</button>
+          <button id="deleteAll" class="btndanger solid" disabled>Delete entire file</button>
+        </div>
+        <div id="opProgressWrap" class="progress-wrap" hidden>
+          <div class="progress-meta"><span id="opProgressLabel">Working…</span><strong id="opProgressPercent"></strong></div>
+          <div id="opProgressTrack" class="progress-track" role="progressbar" aria-label="File operation progress" aria-valuemin="0" aria-valuemax="100"><div id="opProgressFill" class="progress-fill"></div></div>
+        </div>
+        <p id="opStatus" class="opstatus" role="status" aria-live="polite"></p>
+        <p class="helper warning">Deleting needs the robot running lafvin_robot_with_ble_csv_download.ino. The robot stops and pauses logging during any file operation. Keep this page open and the robot powered until it reports the result.</p>
+      </div>
+    </div>
+  </section>
+  </div>
+  </div>
+    <section id="gameCard" class="game-screen" style="display:none">
+    <div class="game-topbar">
+      <button id="gameBack" type="button" class="game-back">← Back</button>
+      <div class="game-title">Game Mode <span class="small">· obstacle checks bypassed</span></div>
+      <div class="game-topbar-spacer"></div>
+    </div>
+    <div class="game-body">
+      <div class="game-layout">
+        <div class="game-steer">
+          <div class="wheel-wrap"><div id="steerWheel" class="steer-wheel" aria-label="Steering wheel"><div class="wheel-mark"></div></div></div>
+          <div class="small">Steer: <b id="gameSteerVal">0</b></div>
+        </div>
+        <div class="game-drive">
+          <button id="gameForward" class="game-drive-btn" type="button">▲ FORWARD</button>
+          <button id="gameReverse" class="game-drive-btn reverse" type="button">▼ REVERSE</button>
+          <div class="small" style="text-align:center">Hold to drive</div>
+        </div>
+      </div>
+      <div class="game-servo">
+        <div class="label" style="margin-bottom:8px">Servo motor</div>
+        <input id="servoSlider" type="range" min="0" max="180" value="90" style="width:100%">
+        <div class="helper" style="margin-top:6px">Angle: <b id="servoVal">90</b>° · Sent in game mode while connected</div>
+      </div>
+      <p class="helper warning" style="margin:0">Game mode bypasses obstacle-sensor and ultrasonic safety checks. Use only in a clear, supervised area.</p>
+    </div>
+  </section>
+  <div class="footer">© Educational BLE controller prototype • Disconnecting the phone stops the robot after its Arduino watchdog expires.</div>
+</main>
+
+<dialog id="confirmDialog" aria-labelledby="dlgTitle">
+  <form method="dialog" class="dlg">
+    <h2 id="dlgTitle"></h2>
+    <div id="dlgBody"></div>
+    <div id="dlgTypeWrap" hidden>
+      <p>Type <b>DELETE</b> to confirm.</p>
+      <input id="dlgType" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Type DELETE to confirm">
+    </div>
+    <div class="actions">
+      <button value="cancel" id="dlgCancel">Cancel</button>
+      <button value="confirm" id="dlgConfirm" class="btndanger solid">Delete</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="csv-tools">
+'use strict';
+/* Shared CSV helpers. These must match the firmware:
+   CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF) over the exact bytes of robot.csv,
+   and selection masks of 64 lines, one bit per line, most significant bit first. */
+function csvCrc16(text){
+  let crc=0xFFFF;
+  for(let i=0;i<text.length;i++){
+    const code=text.charCodeAt(i);
+    if(code>255)throw new Error('The CSV contains characters the robot could not have written.');
+    crc^=code<<8;
+    for(let bit=0;bit<8;bit++)crc=(crc&0x8000)?((crc<<1)^0x1021)&0xFFFF:(crc<<1)&0xFFFF;
+  }
+  return crc;
+}
+function csvCrcHex(text){return csvCrc16(text).toString(16).toUpperCase().padStart(4,'0')}
+function csvMaskHex(selectedLines,startLine){
+  let hex='';
+  for(let byte=0;byte<8;byte++){
+    let value=0;
+    for(let bit=0;bit<8;bit++){
+      const line=startLine+byte*8+bit;
+      if(line>0&&selectedLines.has(line))value|=0x80>>bit;
+    }
+    hex+=value.toString(16).toUpperCase().padStart(2,'0');
+  }
+  return hex;
+}
+function csvRemoveLines(text,selectedLines){
+  return text.split('\n').filter((line,index)=>!selectedLines.has(index)).join('\n');
+}
+</script>
+<script>
+'use strict';
+// JDY-16 documented factory default BLE UUIDs (may have been changed by AT commands).
+const SERVICE_UUID = 0xFFE0;
+const DATA_UUID = 0xFFE1;
+const SEND_EVERY_MS = 120; // Send periodic joystick packets / auto heartbeat.
+const DEADZONE = 12;
+const PAGE_SIZE = 100;
+let device = null, characteristic = null, activeMode = 'MANUAL';
+let coords = {x:0,y:0}, heldPointer = null;
+let sending = false, urgentQueue = [], latestControl = null;
+let csvDownloadActive = false, csvDownloadStarted = false, csvReceiveBuffer = '', csvTimeout = null, csvExpectedBytes = -1, canReceiveData = false;
+// CSV preview and file management state
+let fileOp = null, fileOpTimer = null, lineBuffer = '', firmwareSupportsFiles = false, versionTimer = null;
+let csvText = '', csvLines = [], csvSource = '', selected = new Set(), page = 0, pending = null;
+const $ = id => document.getElementById(id);
+
+function connected(){return !!(device && device.gatt && device.gatt.connected && characteristic)}
+function busy(){return csvDownloadActive || fileOp!==null}
+function activity(text){$('activity').textContent = text}
+function updateConnectUI(){
+  const on = connected();
+  $('connect').disabled = on;
+  $('disconnect').disabled = !on || busy();
+  $('manual').disabled = !on || busy();
+  $('auto').disabled = !on || busy();
+  $('game').disabled = !on || busy();
+  $('stop').disabled = !on || busy();
+  $('downloadCsv').disabled = !on || busy() || !canReceiveData;
+  $('status').textContent = on ? '● CONNECTED' : '● DISCONNECTED';
+  $('status').classList.toggle('connected',on);
+  updateFileUI();
+}
+function updateModeUI(){
+  $('manual').classList.toggle('active', activeMode==='MANUAL');
+  $('auto').classList.toggle('active', activeMode==='AUTO');
+  $('game').classList.toggle('active', activeMode==='GAME');
+  const joy=$('joystickCard'); if(joy) joy.style.display = activeMode==='GAME' ? 'none' : '';
+  const gs=$('gameCard'); if(gs) gs.style.display = activeMode==='GAME' ? 'flex' : 'none';
+  if(activeMode==='MANUAL') $('modeHelp').textContent='Manual: joystick controls left/right motor speed. Obstacle safety stays enabled.';
+  else if(activeMode==='AUTO') $('modeHelp').textContent='Auto: original obstacle avoidance decisions. The phone sends heartbeats; missing heartbeats trigger a stop.';
+  else $('modeHelp').textContent='Game: full-screen steering wheel and forward/reverse controls. Obstacle-sensor safety checks are bypassed in this mode; use it only in a clear area.';
+  $('zone').style.opacity=activeMode==='MANUAL'?'1':'.46';
+}
+function updateJoystickUI(){
+  const r=$('zone').getBoundingClientRect(), travel=r.width*0.36;
+  $('thumb').style.left=`calc(50% + ${coords.x*travel/100}px)`;
+  $('thumb').style.top=`calc(50% - ${coords.y*travel/100}px)`;
+  $('xval').textContent=coords.x;$('yval').textContent=coords.y;
+  const x=Math.abs(coords.x)<=DEADZONE?0:coords.x;
+  const y=Math.abs(coords.y)<=DEADZONE?0:coords.y;
+  let name='STOP';
+  if(x||y){name=Math.abs(y)>Math.abs(x)*1.4?(y>0?'FORWARD':'BACKWARD'):
+    Math.abs(x)>Math.abs(y)*1.4?(x>0?'RIGHT':'LEFT'):'CURVE';}
+  $('direction').textContent=activeMode==='AUTO'?'AUTO':name;
+  const left=Math.max(-100,Math.min(100,y+x));
+  const right=Math.max(-100,Math.min(100,y-x));
+  function motorLabel(v){return activeMode==='AUTO'?'AUTO':Math.abs(v)<=DEADZONE?'STOP':(v>0?'FWD ':'REV ')+Math.abs(v)+'%'}
+  $('leftMotor').textContent=motorLabel(left);$('rightMotor').textContent=motorLabel(right);
+}
+function setCoords(x,y){
+  coords.x=Math.max(-100,Math.min(100,Math.round(x)));
+  coords.y=Math.max(-100,Math.min(100,Math.round(y)));
+  updateJoystickUI();
+}
+function resetJoystick(sendZero=true){
+  heldPointer=null;setCoords(0,0);
+  if(sendZero && connected() && activeMode==='MANUAL') postUrgent('J,0,0\n');
+}
+function postLatest(text){latestControl=text;void pump()}
+function postUrgent(text){latestControl=null;urgentQueue.push(text);void pump()}
+async function pump(){
+  if(sending || !connected()) return;
+  sending=true;
+  try {
+    while(connected() && (urgentQueue.length || latestControl!==null)){
+      let packet;
+      if(urgentQueue.length) packet=urgentQueue.shift();
+      else {packet=latestControl;latestControl=null}
+      const bytes=new TextEncoder().encode(packet);
+      if(characteristic.properties.writeWithoutResponse && characteristic.writeValueWithoutResponse){
+        await characteristic.writeValueWithoutResponse(bytes);
+      } else if(characteristic.properties.write && characteristic.writeValueWithResponse){
+        await characteristic.writeValueWithResponse(bytes);
+      } else if(characteristic.writeValue){
+        await characteristic.writeValue(bytes); // compatibility with earlier browsers
+      } else throw Error('FFE1 is not writable');
+      activity('Sent: '+packet.trim());
+    }
+  } catch(error){activity('Bluetooth write failed: '+(error.message||error));}
+  finally {sending=false}
+}
+
+/* ---------- CSV download (unchanged protocol: D -> #CSV_BEGIN,<bytes> ... #CSV_END) ---------- */
+function setCsvStatus(message){$('downloadStatus').textContent=message}
+function updateCsvProgress(received, total, state='downloading'){
+  const wrap=$('csvProgressWrap'), fill=$('csvProgressFill'), track=$('csvProgressTrack');
+  wrap.style.display='block';
+  fill.className='progress-fill';
+  if(state==='waiting'){
+    fill.classList.add('indeterminate');$('csvProgressLabel').textContent='Waiting for robot…';$('csvProgressPercent').textContent='—';
+    track.removeAttribute('aria-valuenow');return;
+  }
+  const percent=total>0?Math.min(100,Math.floor(received/total*100)):(state==='complete'?100:0);
+  fill.style.width=percent+'%';$('csvProgressPercent').textContent=percent+'%';
+  $('csvProgressLabel').textContent=received.toLocaleString()+' / '+total.toLocaleString()+' bytes';
+  track.setAttribute('aria-valuenow',String(percent));
+  if(state==='complete'){fill.classList.add('complete');$('csvProgressLabel').textContent='Download complete';$('csvProgressPercent').textContent='100%';fill.style.width='100%';track.setAttribute('aria-valuenow','100');}
+  if(state==='failed')fill.classList.add('failed');
+}
+function saveText(text,name){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function finishCsvDownload(success, message){
+  if(csvTimeout!==null){clearTimeout(csvTimeout);csvTimeout=null;}
+  csvDownloadActive=false;
+  $('downloadCsv').textContent='⬇ Download CSV Logs';
+  if(success){
+    updateCsvProgress(csvExpectedBytes,csvExpectedBytes,'complete');
+    saveText(csvReceiveBuffer,'robot.csv');
+    setCsvStatus('Download complete. robot.csv was saved by your browser and is shown in the preview.');
+    loadPreview(csvReceiveBuffer,'robot');
+  }else{
+    if(csvExpectedBytes>=0)updateCsvProgress(Math.min(new TextEncoder().encode(csvReceiveBuffer).length,csvExpectedBytes),csvExpectedBytes,'failed');
+    else updateCsvProgress(0,0,'failed');
+    setCsvStatus(message||'CSV download failed.');
+  }
+  csvReceiveBuffer='';csvDownloadStarted=false;csvExpectedBytes=-1;lineBuffer='';
+  updateConnectUI();
+}
+function handleDownloadData(incoming){
+  csvReceiveBuffer+=incoming;
+  if(!csvDownloadStarted){
+    const error=csvReceiveBuffer.indexOf('#CSV_ERROR_');
+    const begin=csvReceiveBuffer.indexOf('#CSV_BEGIN,');
+    if(error>=0 && (begin<0 || error<begin)){
+      const lineEnd=csvReceiveBuffer.indexOf('\n',error);
+      if(lineEnd>=0){finishCsvDownload(false,csvReceiveBuffer.slice(error,lineEnd).replace('\r',''));}
+      return;
+    }
+    if(begin>=0){
+      const headerEnd=csvReceiveBuffer.indexOf('\n',begin);
+      if(headerEnd>=0){
+        const header=csvReceiveBuffer.slice(begin,headerEnd).replace('\r','');
+        const size=Number(header.substring('#CSV_BEGIN,'.length));
+        if(!Number.isSafeInteger(size)||size<0){finishCsvDownload(false,'The robot sent an invalid CSV file size.');return;}
+        csvExpectedBytes=size;
+        csvReceiveBuffer=csvReceiveBuffer.slice(headerEnd+1);
+        csvDownloadStarted=true;
+        // At 9600-baud UART, allow generous transfer time plus startup margin.
+        if(csvTimeout!==null)clearTimeout(csvTimeout);
+        const transferTimeout=Math.min(60*60*1000,Math.max(60000,Math.ceil(size/600*1000)+30000));
+        csvTimeout=setTimeout(()=>finishCsvDownload(false,'Timed out while receiving robot.csv. Reconnect and try again.'),transferTimeout);
+        updateCsvProgress(0,size);
+        setCsvStatus('Receiving robot.csv. Keep the page open until the transfer finishes.');
+      }
+    }
+  }
+  if(csvDownloadStarted){
+    const receivedBytes=Math.min(new TextEncoder().encode(csvReceiveBuffer).length,csvExpectedBytes);
+    updateCsvProgress(receivedBytes,csvExpectedBytes);
+    const end=csvReceiveBuffer.indexOf('\n#CSV_END\n');
+    if(end>=0){
+      const csv=csvReceiveBuffer.slice(0,end);
+      if(csv.length!==csvExpectedBytes){
+        finishCsvDownload(false,'Incomplete CSV transfer: expected '+csvExpectedBytes+' bytes but received '+csv.length+'.');
+      }else{
+        csvReceiveBuffer=csv;
+        finishCsvDownload(true);
+      }
+    }
+  }
+}
+function handleBluetoothData(event){
+  const incoming=new TextDecoder().decode(event.target.value);
+  if(csvDownloadActive){handleDownloadData(incoming);return;}
+  lineBuffer+=incoming;
+  let end;
+  while((end=lineBuffer.indexOf('\n'))>=0){
+    const line=lineBuffer.slice(0,end).replace(/\r$/,'');
+    lineBuffer=lineBuffer.slice(end+1);
+    if(line)handleRobotLine(line);
+  }
+  if(lineBuffer.length>512)lineBuffer=lineBuffer.slice(-512);
+}
+function handleRobotLine(line){
+  if(line.startsWith('#FW,')){
+    clearTimeout(versionTimer);versionTimer=null;
+    firmwareSupportsFiles=line==='#FW,RSL_CSV_MANAGE_1';
+    setFirmwareStatus();updateFileUI();
+    return;
+  }
+  if(fileOp==='rewrite'){handleRewriteLine(line);return;}
+  if(fileOp==='deleteAll'){handleDeleteAllLine(line);return;}
+  activity('Received: '+line.slice(0,80));
+}
+function beginCsvDownload(){
+  if(!connected()||busy())return;
+  if(!canReceiveData){setCsvStatus('This JDY-16 connection does not expose BLE notifications, so the website cannot receive the CSV file. Robot controls remain available.');return;}
+  csvDownloadActive=true;csvDownloadStarted=false;csvReceiveBuffer='';
+  activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();
+  $('downloadCsv').disabled=true;$('downloadCsv').textContent='Receiving CSV…';
+  updateCsvProgress(0,0,'waiting');
+  setCsvStatus('Request sent. The robot will stop while its SD card log is transferred.');
+  updateConnectUI();
+  csvTimeout=setTimeout(()=>finishCsvDownload(false,'Timed out waiting for the CSV file. Check the BLE notification support and reconnect.'),60000);
+  postUrgent('D\n');
+}
+$('downloadCsv').addEventListener('click',beginCsvDownload);
+
+/* ---------- CSV preview ---------- */
+function loadPreview(text,source){
+  csvText=text;csvSource=source;csvLines=text.split('\n');selected=new Set();page=0;
+  renderPreview();
+}
+function dataLineIndexes(){
+  // Line 0 is the header. A file that ends with a line break leaves an empty last element.
+  const last=csvLines[csvLines.length-1]===''?csvLines.length-1:csvLines.length;
+  const lines=[];for(let i=1;i<last;i++)lines.push(i);return lines;
+}
+function renderPreview(){
+  const has=csvLines.length>0&&csvText!=='';
+  $('previewEmpty').hidden=has;$('previewBody').hidden=!has;
+  $('saveCopy').disabled=!has;
+  if(!has){updateFileUI();return;}
+  const header=csvLines[0].replace(/\r$/,'').split(',');
+  const lines=dataLineIndexes();
+  const pages=Math.max(1,Math.ceil(lines.length/PAGE_SIZE));
+  page=Math.min(page,pages-1);
+  $('previewSummary').innerHTML='';
+  [['Records',lines.length.toLocaleString()],['Columns',String(header.length)],['Size',csvText.length.toLocaleString()+' bytes'],['Source',csvSource==='robot'?'Downloaded from robot':'Opened from this device']].forEach(([k,v])=>{
+    const span=document.createElement('span');span.append(k+': ');const b=document.createElement('b');b.textContent=v;span.append(b);$('previewSummary').append(span);
+  });
+  const headRow=document.createElement('tr');
+  const thSel=document.createElement('th');thSel.textContent='';thSel.setAttribute('aria-label','Select');headRow.append(thSel);
+  const thNum=document.createElement('th');thNum.className='num';thNum.textContent='Line';headRow.append(thNum);
+  header.forEach(name=>{const th=document.createElement('th');th.textContent=name;th.scope='col';headRow.append(th);});
+  $('thead').replaceChildren(headRow);
+  const frag=document.createDocumentFragment();
+  lines.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).forEach(index=>{
+    const tr=document.createElement('tr');if(selected.has(index))tr.className='sel';
+    const tdc=document.createElement('td');const box=document.createElement('input');box.type='checkbox';box.className='chk';box.dataset.line=index;box.checked=selected.has(index);box.disabled=busy();box.setAttribute('aria-label','Select line '+index);tdc.append(box);tr.append(tdc);
+    const tdn=document.createElement('td');tdn.className='num';tdn.textContent=index;tr.append(tdn);
+    csvLines[index].replace(/\r$/,'').split(',').forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.append(td);});
+    frag.append(tr);
+  });
+  $('tbody').replaceChildren(frag);
+  $('pageInfo').textContent=lines.length?`Records ${Math.min(lines.length,page*PAGE_SIZE+1).toLocaleString()}–${Math.min(lines.length,(page+1)*PAGE_SIZE).toLocaleString()} of ${lines.length.toLocaleString()}`:'No records yet';
+  $('prevPage').disabled=page===0;$('nextPage').disabled=page>=pages-1;
+  updateSelectionUI();
+}
+function updateSelectionUI(){
+  $('selCount').textContent=selected.size.toLocaleString()+' selected';
+  updateFileUI();
+}
+$('tbody').addEventListener('change',event=>{
+  const box=event.target.closest('input[data-line]');if(!box||busy())return;
+  const line=Number(box.dataset.line);
+  if(box.checked)selected.add(line);else selected.delete(line);
+  box.closest('tr').classList.toggle('sel',box.checked);
+  updateSelectionUI();
+});
+$('selectAll').addEventListener('click',()=>{if(busy())return;selected=new Set(dataLineIndexes());renderPreview();});
+$('deselectAll').addEventListener('click',()=>{if(busy())return;selected=new Set();renderPreview();});
+$('prevPage').addEventListener('click',()=>{page=Math.max(0,page-1);renderPreview();$('tableWrap').scrollTop=0;});
+$('nextPage').addEventListener('click',()=>{page=page+1;renderPreview();$('tableWrap').scrollTop=0;});
+$('saveCopy').addEventListener('click',()=>{if(csvText)saveText(csvText,'robot-backup-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.csv');});
+$('openFile').addEventListener('change',async event=>{
+  const file=event.target.files&&event.target.files[0];event.target.value='';
+  if(!file||busy())return;
+  const buffer=new Uint8Array(await file.arrayBuffer());
+  let text='';for(let i=0;i<buffer.length;i++)text+=String.fromCharCode(buffer[i]); // byte-exact, like the robot's file
+  loadPreview(text,'file');
+  setCsvStatus('Opened '+file.name+'. Deleting records works only if this copy still matches the start of robot.csv on the robot.');
+});
+
+/* ---------- file management ---------- */
+function setFirmwareStatus(){
+  const el=$('fwStatus');el.className='fw';
+  if(!connected()){el.textContent='File management: connect to check the robot\'s firmware.';return;}
+  if(!canReceiveData){el.classList.add('no');el.textContent='File management unavailable: this connection cannot receive replies from the robot.';return;}
+  if(versionTimer!==null){el.textContent='Checking the robot\'s firmware…';return;}
+  if(firmwareSupportsFiles){el.classList.add('ok');el.textContent='File management available (firmware RSL_CSV_MANAGE_1).';}
+  else{el.classList.add('no');el.textContent='Selective record delete needs lafvin_robot_with_ble_csv_download.ino firmware. Download, open/save/view, and whole-file delete (if supported by connected firmware) remain available.';}
+}
+function updateFileUI(){
+  const ready=connected()&&canReceiveData&&firmwareSupportsFiles&&!busy();
+  const simpleReady=connected()&&canReceiveData&&!busy();
+  $('deleteSelected').disabled=!ready||selected.size===0||!csvText;
+  $('deleteAll').disabled=!simpleReady;
+  $('selectAll').disabled=busy();$('deselectAll').disabled=busy();
+  $('openFileLabel').style.opacity=busy()?'.43':'1';
+  $('openFile').disabled=busy();
+  document.querySelectorAll('#tbody input[data-line]').forEach(box=>{box.disabled=busy()});
+}
+function setOpStatus(text,kind=''){$('opStatus').textContent=text;$('opStatus').className='opstatus'+(kind?' '+kind:'');}
+function setOpProgress(fraction,label){
+  $('opProgressWrap').hidden=false;
+  const fill=$('opProgressFill');fill.className='progress-fill';
+  if(fraction===null){fill.classList.add('indeterminate');$('opProgressPercent').textContent='';$('opProgressTrack').removeAttribute('aria-valuenow');}
+  else{const p=Math.max(0,Math.min(100,Math.floor(fraction*100)));fill.style.width=p+'%';$('opProgressPercent').textContent=p+'%';$('opProgressTrack').setAttribute('aria-valuenow',String(p));}
+  $('opProgressLabel').textContent=label;
+}
+function armOpTimer(ms,message){
+  clearTimeout(fileOpTimer);
+  fileOpTimer=setTimeout(()=>finishFileOp(false,message),ms);
+}
+function beginFileOp(kind){
+  fileOp=kind;lineBuffer='';
+  activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();
+  updateConnectUI();renderPreview();
+}
+function finishFileOp(success,message){
+  clearTimeout(fileOpTimer);fileOpTimer=null;
+  const kind=fileOp;fileOp=null;pending=null;
+  const fill=$('opProgressFill');fill.className='progress-fill '+(success?'complete':'failed');fill.style.width='100%';
+  $('opProgressPercent').textContent=success?'100%':'';
+  $('opProgressLabel').textContent=success?'Done':'Stopped';
+  setOpStatus(message,success?'ok':'err');
+  if(kind==='rewrite'&&!success&&connected())postUrgent('RWX\n'); // ends the robot's wait if it is still waiting for a selection
+  updateConnectUI();renderPreview();
+}
+const errorText={
+  SD_NOT_READY:'The robot reports that its SD card is not ready.',
+  OPEN_FAILED:'The robot could not open robot.csv.',
+  CHANGED:'robot.csv on the robot no longer matches this copy (it may have been changed or deleted). Download it again, then select the records again.',
+  TMP_FAILED:'The robot could not create its temporary file.',
+  READ_FAILED:'The robot could not read robot.csv.',
+  WRITE_FAILED:'The robot could not write its temporary file.',
+  TIMEOUT:'The robot stopped waiting for the selection.',
+  CANCELLED:'The operation was cancelled.',
+  COUNT_MISMATCH:'The number of records to delete did not match what the robot found.',
+  VERIFY_FAILED:'The rewritten file failed its check on the card, so it was discarded.',
+  REPLACE_FAILED:'The robot could not swap in the rewritten file.',
+  ARGS:'The robot rejected the request.',
+  REMOVE_FAILED:'The robot could not delete robot.csv.',
+  STILL_PRESENT:'robot.csv was still on the card after the delete command.',
+};
+function handleRewriteLine(line){
+  armOpTimer(30000,'No reply from the robot for 30 seconds. robot.csv was not confirmed as changed; download it again to check.');
+  if(line==='#BUSY'){finishFileOp(false,'The robot is busy with another file operation. Nothing was deleted.');return;}
+  if(line.startsWith('#RW_NEXT,')){
+    const start=Number(line.slice(9));
+    if(!Number.isSafeInteger(start)||start<0){finishFileOp(false,'The robot sent an unexpected reply. Nothing was confirmed as deleted.');return;}
+    postUrgent('K,'+csvMaskHex(pending.lines,start)+'\n');
+    setOpProgress(Math.min(1,start/Math.max(1,csvLines.length))*0.5,'Sending the selection, line '+start.toLocaleString());
+    return;
+  }
+  if(line.startsWith('#RW_PROGRESS,')){
+    const [pos,total]=line.slice(13).split(',').map(Number);
+    if(total>0)setOpProgress(0.5+pos/total*0.4,'Rewriting robot.csv on the card');
+    return;
+  }
+  if(line==='#RW_VERIFY'){
+    // Re-reading the whole file over software SPI can take a while on large logs.
+    armOpTimer(Math.max(60000,pending.bytes*5),'No reply from the robot while it checked the rewritten file. Download robot.csv to see whether it changed.');
+    setOpProgress(0.92,'Checking the rewritten file');
+    return;
+  }
+  if(line.startsWith('#RW_OK,')){
+    const [deleted,newSize]=line.slice(7).split(',').map(Number);
+    const removed=pending.lines;
+    if(deleted!==pending.count){
+      finishFileOp(true,`The robot reports ${deleted} records deleted (${pending.count} were selected). Download robot.csv again to check the result.`);
+      return;
+    }
+    csvText=csvRemoveLines(csvText,removed);csvLines=csvText.split('\n');selected=new Set();
+    finishFileOp(true,`Deleted ${deleted.toLocaleString()} ${deleted===1?'record':'records'}. The robot checked the rewritten robot.csv (${newSize.toLocaleString()} bytes, including any rows logged after your download).`);
+    return;
+  }
+  if(line.startsWith('#RW_ERROR_')){
+    const code=line.slice(10);
+    if(code==='RESTORE_PENDING'){finishFileOp(false,'The new file could not be put in place and the original is stored as robot.bak. Logging is paused; switch the robot off and on to restore robot.csv automatically.');return;}
+    finishFileOp(false,(errorText[code]||('Robot error '+code+'.'))+' robot.csv was left unchanged.');
+  }
+}
+function handleDeleteAllLine(line){
+  if(line==='#BUSY'){finishFileOp(false,'The robot is busy with another file operation. Nothing was deleted.');return;}
+  if(line==='#CSV_DELETED'){
+    csvText='';csvLines=[];selected=new Set();
+    finishFileOp(true,'robot.csv was deleted and recreated with a fresh log/header on the SD card. New records are logged from now on.');
+    return;
+  }
+  if(line.startsWith('#CSV_DELETE_ERROR')){
+    const msg=line==='#CSV_DELETE_ERROR_SD_NOT_READY' ? 'The robot reports that its SD card is not ready.'
+      : line==='#CSV_DELETE_ERROR_REMOVE_FAILED' ? 'The robot could not remove robot.csv from the SD card.'
+      : line==='#CSV_DELETE_ERROR_REOPEN_FAILED' ? 'robot.csv was removed but the robot could not create a new log file.'
+      : ('Robot error '+line+'.');
+    finishFileOp(false,msg);
+    return;
+  }
+  if(line.startsWith('#DEL_OK,')){
+    const size=Number(line.slice(8));
+    csvText='';csvLines=[];selected=new Set();
+    finishFileOp(true,`robot.csv was deleted and recreated with only its header (${size} bytes). New records are logged from now on.`);
+    return;
+  }
+  if(line.startsWith('#DEL_ERROR_')){
+    const code=line.slice(11);
+    if(code==='RECREATE_FAILED'||code==='HEADER_FAILED'){finishFileOp(false,'robot.csv was deleted, but the robot could not create a new file, so logging is paused. Restart the robot to try again.');return;}
+    finishFileOp(false,(errorText[code]||('Robot error '+code+'.'))+' Nothing was deleted.');
+  }
+}
+function confirmAction({title,body,requireType,confirmLabel}){
+  return new Promise(resolve=>{
+    const dlg=$('confirmDialog');
+    $('dlgTitle').textContent=title;
+    $('dlgBody').replaceChildren(...body.map(text=>{const p=document.createElement('p');p.textContent=text;return p;}));
+    $('dlgTypeWrap').hidden=!requireType;$('dlgType').value='';
+    $('dlgConfirm').textContent=confirmLabel;
+    $('dlgConfirm').disabled=!!requireType;
+    const onInput=()=>{$('dlgConfirm').disabled=$('dlgType').value.trim().toUpperCase()!=='DELETE'};
+    $('dlgType').addEventListener('input',onInput);
+    dlg.addEventListener('close',()=>{$('dlgType').removeEventListener('input',onInput);resolve(dlg.returnValue==='confirm');},{once:true});
+    dlg.returnValue='cancel';dlg.showModal();
+    (requireType?$('dlgType'):$('dlgCancel')).focus();
+  });
+}
+$('deleteSelected').addEventListener('click',async()=>{
+  if(busy()||!selected.size||!csvText)return;
+  if(!csvText.endsWith('\n')){setOpStatus('This copy does not end at a complete record, so it cannot be matched to the robot\'s file. Download it again.','err');return;}
+  let crc;
+  try{crc=csvCrcHex(csvText);}catch(error){setOpStatus(error.message,'err');return;}
+  const count=selected.size;
+  const ok=await confirmAction({
+    title:`Delete ${count.toLocaleString()} ${count===1?'record':'records'}?`,
+    body:[
+      'They will be removed from robot.csv on the robot\'s SD card. Records logged after your download are kept.',
+      'The robot writes the kept records to a temporary file, checks it, and only then replaces robot.csv.',
+      'Your copy on this device stays as a backup. Use "Save this copy" first if you have not saved it.'
+    ],
+    confirmLabel:'Delete selected'
+  });
+  if(!ok||busy()||!connected())return;
+  pending={lines:new Set(selected),count,bytes:csvText.length};
+  beginFileOp('rewrite');
+  setOpProgress(null,'Waiting for the robot');
+  setOpStatus('Robot stopped. Matching your copy with robot.csv…');
+  armOpTimer(30000,'No reply from the robot for 30 seconds. robot.csv was not confirmed as changed; download it again to check.');
+  postUrgent(`RW,${pending.bytes},${crc},${count}\n`);
+});
+$('deleteAll').addEventListener('click',async()=>{
+  if(busy())return;
+  if(!canReceiveData){setOpStatus('BLE notifications are unavailable, so the website cannot confirm deletion.','err');return;}
+  const ok=await confirmAction({
+    title:'Delete the entire robot.csv?',
+    body:[
+      'Every record on the robot\'s SD card will be removed. The robot then creates a new robot.csv that holds only the column header.',
+      'This cannot be undone on the robot. Download and save a copy first if you need the data.'
+    ],
+    requireType:true,
+    confirmLabel:'Delete entire file'
+  });
+  if(!ok||busy()||!connected())return;
+  beginFileOp('deleteAll');
+  setOpProgress(null,'Deleting robot.csv');
+  setOpStatus('Robot stopped. Waiting for the robot to confirm?');
+  armOpTimer(20000,'No reply from the robot. robot.csv was not confirmed as deleted; download it to check.');
+  postUrgent(firmwareSupportsFiles ? 'DELALL\n' : 'X\n');
+});
+
+/* ---------- connection and controls ---------- */
+function onDisconnected(){
+  if(csvDownloadActive)finishCsvDownload(false,'Bluetooth disconnected before the CSV download completed.');
+  if(fileOp)finishFileOp(false,'Bluetooth disconnected before the robot reported a result. Reconnect and download robot.csv to check it.');
+  clearTimeout(versionTimer);versionTimer=null;firmwareSupportsFiles=false;
+  characteristic=null;device=null;canReceiveData=false;urgentQueue=[];latestControl=null;
+  resetJoystick(false);if(typeof resetGameControls==='function') resetGameControls(false);activeMode='MANUAL';updateModeUI();updateJoystickUI();updateConnectUI();setFirmwareStatus();
+  activity('Disconnected. Arduino watchdog will stop motors.');
+}
+$('connect').addEventListener('click',async()=>{
+  if(!navigator.bluetooth){activity('Web Bluetooth not available. Open this page through HTTPS in Chrome for Android.');return}
+  try{
+    activity('Choose JDY-16 from the BLE device picker...');
+    // requestDevice MUST be invoked as a direct result of tapping Connect.
+    const chosen=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SERVICE_UUID]});
+    chosen.addEventListener('gattserverdisconnected',onDisconnected);
+    device=chosen; // Keep a reference so errors can disconnect cleanly.
+    const server=await chosen.gatt.connect();
+    const service=await server.getPrimaryService(SERVICE_UUID);
+    const found=await service.getCharacteristic(DATA_UUID);
+    if(!found.properties.write && !found.properties.writeWithoutResponse){
+      throw Error('FFE1 does not report write support; check module UUID configuration.');
+    }
+    canReceiveData=false;
+    if(found.properties.notify || found.properties.indicate){
+      try{
+        await found.startNotifications();
+        found.addEventListener('characteristicvaluechanged',handleBluetoothData);
+        canReceiveData=true;
+      }catch(notificationError){
+        canReceiveData=false; // Keep ordinary joystick control available even if receive is unsupported.
+      }
+    }
+    device=chosen;characteristic=found;activeMode='MANUAL';resetJoystick(false);
+    updateModeUI();
+    firmwareSupportsFiles=false;
+    postUrgent('M\n');postUrgent('J,0,0\n');
+    if(canReceiveData){
+      versionTimer=setTimeout(()=>{versionTimer=null;firmwareSupportsFiles=false;setFirmwareStatus();updateFileUI();},3000);
+      postUrgent('V\n');
+    }
+    updateConnectUI();setFirmwareStatus();
+    activity('Connected to '+(device.name||'BLE device')+'; MANUAL and STOP sent.'+(canReceiveData?' CSV download ready.':' CSV download unavailable: BLE notifications not supported.'));
+  } catch(error){
+    activity('Connection failed: '+(error.message||error)+'. Verify JDY-16 default UUIDs and that no other app is connected.');
+    if(device && device.gatt && device.gatt.connected)device.gatt.disconnect();
+    onDisconnected();
+  }
+});
+$('disconnect').addEventListener('click',()=>{
+  if(!connected()||busy())return;
+  postUrgent('S\n');
+  const toDisconnect=device;
+  // Allow the STOP packet an opportunity to transmit; watchdog is backup.
+  setTimeout(()=>{if(toDisconnect && toDisconnect.gatt.connected)toDisconnect.gatt.disconnect()},250);
+});
+$('manual').addEventListener('click',()=>{
+  if(busy())return;
+  activeMode='MANUAL';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();
+  if(connected()){postUrgent('M\n');postUrgent('J,0,0\n')}
+});
+$('auto').addEventListener('click',()=>{
+  if(busy())return;
+  activeMode='AUTO';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();
+  if(connected())postUrgent('A\n');
+});
+$('game').addEventListener('click',()=>{
+  if(busy())return;
+  activeMode='GAME';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();
+  if(connected()){postUrgent('G\n');postUrgent('J,0,0\n');postUrgent(`V,${servoAngle}\n`)}
+});
+$('gameBack').addEventListener('click',()=>{
+  if(busy())return;
+  activeMode='MANUAL';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();
+  if(connected()){postUrgent('M\n');postUrgent('J,0,0\n')}
+});
+$('stop').addEventListener('click',()=>{
+  if(busy())return;
+  activeMode='MANUAL';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();
+  if(connected())postUrgent('S\n');
+  else activity('Not connected; robot should remain stopped.');
+});
+const zone=$('zone');
+function positionFromPointer(e){
+  const r=zone.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let dx=e.clientX-cx,dy=cy-e.clientY;
+  const maxRadius=r.width*.36;
+  const distance=Math.hypot(dx,dy);
+  if(distance>maxRadius){dx=dx*maxRadius/distance;dy=dy*maxRadius/distance}
+  setCoords(dx/maxRadius*100,dy/maxRadius*100);
+}
+zone.addEventListener('pointerdown',e=>{
+  if(busy()||activeMode!=='MANUAL')return;
+  e.preventDefault();heldPointer=e.pointerId;
+  zone.setPointerCapture(e.pointerId);positionFromPointer(e);
+});
+zone.addEventListener('pointermove',e=>{
+  if(activeMode!=='MANUAL'||heldPointer!==e.pointerId)return;
+  e.preventDefault();positionFromPointer(e);
+});
+function release(e){
+  if(heldPointer!==e.pointerId)return;
+  resetJoystick(true);
+}
+zone.addEventListener('pointerup',release);
+zone.addEventListener('pointercancel',release);
+zone.addEventListener('lostpointercapture',release);
+let gameSteer=0, gameThrottle=0, steerPointerId=null, steerStartPointerAngle=0, steerStartRotation=0, steerRotation=0, servoAngle=90;
+function updateGameUI(){
+  $('steerWheel').style.transform=`rotate(${steerRotation}deg)`;
+  $('gameSteerVal').textContent=gameSteer;
+  $('servoVal').textContent=servoAngle;
+  $('servoSlider').value=String(servoAngle);
+  $('gameForward').classList.toggle('active-drive', gameThrottle>0);
+  $('gameReverse').classList.toggle('active-drive', gameThrottle<0);
+}
+function resetGameControls(sendZero=true){
+  gameSteer=0; gameThrottle=0; steerPointerId=null; steerStartPointerAngle=0; steerStartRotation=0; steerRotation=0;
+  updateGameUI();
+  setCoords(0,0);
+  if(sendZero && connected() && activeMode==='GAME') postUrgent('J,0,0\n');
+}
+function setGameDrive(throttle){
+  if(activeMode!=='GAME') return;
+  gameThrottle=throttle;
+  setCoords(gameSteer, gameThrottle);
+  updateGameUI();
+  if(connected()) postLatest(`J,${coords.x},${coords.y}\n`);
+}
+function pointerAngleDeg(e, el){ const r=el.getBoundingClientRect(); return Math.atan2(e.clientY-(r.top+r.height/2), e.clientX-(r.left+r.width/2))*180/Math.PI; }
+function normAngleDelta(d){ while(d>180)d-=360; while(d<-180)d+=360; return d; }
+
+const steerWheel=$('steerWheel');
+steerWheel.addEventListener('pointerdown',e=>{
+  if(busy()||activeMode!=='GAME')return;
+  e.preventDefault(); steerPointerId=e.pointerId; steerWheel.setPointerCapture(e.pointerId);
+  steerStartPointerAngle=pointerAngleDeg(e, steerWheel); steerStartRotation=steerRotation;
+});
+steerWheel.addEventListener('pointermove',e=>{
+  if(activeMode!=='GAME'||steerPointerId!==e.pointerId)return;
+  e.preventDefault();
+  const delta=normAngleDelta(pointerAngleDeg(e, steerWheel)-steerStartPointerAngle);
+  steerRotation=Math.max(-90, Math.min(90, steerStartRotation+delta));
+  gameSteer=Math.round(steerRotation/90*100);
+  setCoords(gameSteer, gameThrottle); updateGameUI(); updateJoystickUI();
+  if(connected()) postLatest(`J,${coords.x},${coords.y}\n`);
+});
+function releaseSteer(e){
+  if(steerPointerId!==e.pointerId)return;
+  steerPointerId=null; steerRotation=0; gameSteer=0;
+  setCoords(0, gameThrottle); updateGameUI(); updateJoystickUI();
+  if(connected() && activeMode==='GAME') postUrgent(`J,${coords.x},${coords.y}\n`);
+}
+steerWheel.addEventListener('pointerup',releaseSteer);
+steerWheel.addEventListener('pointercancel',releaseSteer);
+steerWheel.addEventListener('lostpointercapture',releaseSteer);
+function bindDriveButton(id, throttle){
+  const btn=$(id);
+  const down=e=>{ if(busy()||activeMode!=='GAME')return; e.preventDefault(); if(btn.setPointerCapture) btn.setPointerCapture(e.pointerId); setGameDrive(throttle); };
+  const up=e=>{ if(gameThrottle!==throttle)return; e.preventDefault(); setGameDrive(0); };
+  btn.addEventListener('pointerdown',down);
+  btn.addEventListener('pointerup',up);
+  btn.addEventListener('pointercancel',up);
+  btn.addEventListener('lostpointercapture',()=>{ if(gameThrottle===throttle)setGameDrive(0); });
+}
+bindDriveButton('gameForward',100);
+bindDriveButton('gameReverse',-100);
+$('servoSlider').addEventListener('input',e=>{
+  const v=Number(e.target.value);
+  servoAngle=Math.max(0,Math.min(180,Number.isFinite(v)?v:90));
+  $('servoVal').textContent=servoAngle;
+  if(connected() && activeMode==='GAME' && !busy()) postLatest(`V,${servoAngle}\n`);
+});
+function resetServoSlider(send=true){
+  servoAngle=90;
+  $('servoSlider').value='90';
+  $('servoVal').textContent=90;
+  if(send && connected() && activeMode==='GAME' && !busy()) postUrgent(`V,90\n`);
+}
+$('servoSlider').addEventListener('change',()=>resetServoSlider(true));
+$('servoSlider').addEventListener('pointerup',()=>resetServoSlider(true));
+$('servoSlider').addEventListener('pointercancel',()=>resetServoSlider(true));
+updateGameUI();
+
+setInterval(()=>{
+  if(!connected() || busy())return;
+  if(activeMode==='MANUAL' || activeMode==='GAME')postLatest(`J,${coords.x},${coords.y}\n`);
+  else postLatest('H\n');
+},SEND_EVERY_MS);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && !busy()){activeMode='MANUAL';resetJoystick(false);resetGameControls(false);updateModeUI();updateJoystickUI();if(connected())postUrgent('S\n')}
+});
+window.addEventListener('pagehide',()=>{if(connected()&&!busy())postUrgent('S\n')});
+updateConnectUI();updateModeUI();updateJoystickUI();renderPreview();setFirmwareStatus();
+if(!window.isSecureContext)activity('This file must be hosted on HTTPS (e.g., GitHub Pages) for Chrome Bluetooth access.');
+</script>
+</body>
+</html>

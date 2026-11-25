@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101b32">
+  <title>LAFVIN Robot · BLE Joystick</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#e9f0ff;background:#0b1222;color-scheme:dark}
+    *{box-sizing:border-box}body{margin:0;padding:18px 14px max(22px,env(safe-area-inset-bottom));min-height:100vh;background:radial-gradient(ellipse 80% 40% at 50% -5%,#233c67,#0b1222 75%)}
+    main{max-width:460px;margin:0 auto}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 2px 18px}
+    .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8da6d3;font-weight:800}.head h1{font-size:23px;line-height:1.12;margin:5px 0 0}.small{font-size:12px;color:#a5b3ce}
+    .pill{border:1px solid #445374;border-radius:40px;padding:7px 9px;font-size:11px;font-weight:800;white-space:nowrap;color:#e7ba75;background:#222d42}
+    .pill.connected{border-color:#2c805b;color:#89e5b9;background:#143d30}
+    .card{border:1px solid #2e3d57;background:rgba(22,34,55,.94);border-radius:21px;padding:17px;margin-bottom:13px;box-shadow:0 8px 26px #03070d33}
+    .label{color:#a9b9d6;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px}
+    button{cursor:pointer;touch-action:manipulation;border:1px solid #435873;border-radius:13px;background:#273650;color:#f2f5ff;font-size:14px;padding:13px 10px;font-weight:800}
+    button:disabled{opacity:.43;cursor:not-allowed}.btnprimary{background:#397df1;border-color:#478cff}.btnstop{width:100%;background:#a82b40;border-color:#e65e69;box-shadow:inset 0 -2px 0 #651320;font-size:19px;letter-spacing:.06em;padding:17px}
+    .connectrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.seg button.active{border-color:#61a0ff;background:#284e8f;color:white}
+    .joywrap{display:flex;flex-direction:column;align-items:center;gap:8px;user-select:none;-webkit-user-select:none}.joyzone{position:relative;width:min(72vw,310px);aspect-ratio:1;touch-action:none;border-radius:50%;border:2px solid #476080;background:radial-gradient(circle at 35% 25%,#33486c,#1a2844 55%,#111b31);box-shadow:inset 0 0 0 2px #16253b,inset 0 16px 34px #111927,0 8px 24px #0b1022;overflow:hidden}
+    .axisx,.axisy{position:absolute;background:#5e779e4a;pointer-events:none}.axisx{height:2px;left:14%;right:14%;top:50%}.axisy{width:2px;top:14%;bottom:14%;left:50%}
+    .ring{position:absolute;inset:19%;border-radius:50%;border:1px dashed #6683a477;pointer-events:none}.thumb{position:absolute;left:50%;top:50%;width:75px;height:75px;transform:translate(-50%,-50%);background:linear-gradient(145deg,#73b0ff,#2365dd);border:4px solid #c7e2ff;border-radius:50%;box-shadow:0 8px 18px #07152dc0,0 0 0 10px #3d85ee20;pointer-events:none;display:grid;place-items:center}
+    .thumb:after{content:"✥";font-size:26px;color:#dbeaff}.arrow{position:absolute;font-size:20px;color:#a4b8d9;pointer-events:none}.up{top:14px;left:calc(50% - 8px)}.down{bottom:12px;left:calc(50% - 8px)}.left{left:14px;top:calc(50% - 14px)}.right{right:14px;top:calc(50% - 14px)}
+    .values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}.value{border:1px solid #304158;background:#0f1a2e;border-radius:13px;text-align:center;padding:8px 6px}.value .title{font-size:10px;color:#9dafce;margin-bottom:3px}.value b{font-size:18px;line-height:1.4}
+    .motorrow{display:grid;grid-template-columns:1fr 1fr;gap:9px}.motor{border-radius:13px;padding:12px;background:#0d192e;border:1px solid #304158}.motor .mvalue{font-size:18px;font-weight:800;margin-top:3px}
+    .activity{font-family:ui-monospace,Consolas,monospace;border-radius:10px;background:#0b1525;padding:9px 11px;font-size:11px;color:#a7c7f9;min-height:34px;overflow-wrap:anywhere}
+    .helper{line-height:1.5;color:#a9b9d6;font-size:12px}.warning{border-left:3px solid #ffc06e;padding-left:10px}.footer{font-size:11px;color:#8192ad;text-align:center;margin:15px 4px}
+    .progress-wrap{display:block;margin-top:13px}.progress-meta{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px;font-size:11px;color:#a9b9d6}.progress-track{height:12px;width:100%;overflow:hidden;border-radius:99px;background:#0b1525;border:1px solid #344764}.progress-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#397df1,#62b6ff);transition:width .15s ease}.progress-fill.indeterminate{width:35%;animation:progressMove 1.1s ease-in-out infinite}.progress-fill.failed{background:#e65e69}.progress-fill.complete{background:#39b980}@keyframes progressMove{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="head"><div><div class="eyebrow">LAFVIN · Arduino Uno</div><h1>BLE Joystick</h1></div><span id="status" class="pill">● DISCONNECTED</span></div>
+  <section class="card">
+    <div class="label">JDY-16 connection</div>
+    <div class="connectrow"><button id="connect" class="btnprimary">⌁ Connect BLE</button><button id="disconnect" disabled>Disconnect</button></div>
+    <p class="helper" style="margin:11px 0 0">Android Chrome • JDY-16 • FFE0 service / FFE1 characteristic. Requires an HTTPS-hosted page.</p>
+  </section>
+  <section class="card">
+    <div class="label">Robot operating mode</div>
+    <div class="seg"><button id="manual" class="active">🎮 MANUAL</button><button id="auto">🤖 AUTO</button></div>
+    <p id="modeHelp" class="helper" style="margin:10px 0 0">Manual: joystick controls differential motor speeds. Obstacle safety stays enabled.</p>
+  </section>
+  <section class="card">
+    <div class="label">SD card data</div>
+    <button id="downloadCsv" class="btnprimary" style="width:100%" disabled>⬇ Download CSV Logs</button>
+    <div id="csvProgressWrap" class="progress-wrap" aria-live="polite">
+      <div class="progress-meta"><span id="csvProgressLabel">Ready to download</span><strong id="csvProgressPercent">0%</strong></div>
+      <div id="csvProgressTrack" class="progress-track" role="progressbar" aria-label="CSV download progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="csvProgressFill" class="progress-fill"></div></div>
+    </div>
+    <p id="downloadStatus" class="helper" style="margin:10px 0 0">Connect to the robot to download robot.csv from its SD card.</p>
+  </section>
+  <section class="card">
+    <div class="label">Two-axis proportional joystick</div>
+    <div class="joywrap"><div id="zone" class="joyzone" aria-label="Joystick touchpad">
+      <div class="axisx"></div><div class="axisy"></div><div class="ring"></div>
+      <div class="arrow up">↑</div><div class="arrow down">↓</div><div class="arrow left">←</div><div class="arrow right">→</div>
+      <div class="thumb" id="thumb"></div>
+    </div><span class="small">Hold and drag to drive · Release to stop</span></div>
+    <div class="values" style="margin-top:13px"><div class="value"><div class="title">X · steer</div><b id="xval">0</b></div><div class="value"><div class="title">Y · throttle</div><b id="yval">0</b></div><div class="value"><div class="title">Direction</div><b id="direction" style="font-size:12px">STOP</b></div></div>
+  </section>
+  <section class="card"><div class="label">Commanded motor speed (approximate)</div><div class="motorrow"><div class="motor"><div class="small">Left motor</div><div id="leftMotor" class="mvalue">STOP</div></div><div class="motor"><div class="small">Right motor</div><div id="rightMotor" class="mvalue">STOP</div></div></div></section>
+  <button id="stop" class="btnstop">■ EMERGENCY STOP</button>
+  <section class="card" style="margin-top:13px"><div class="label">Command activity</div><div id="activity" class="activity">Waiting for Bluetooth connection...</div><p class="helper warning">Protected manual driving is not fully collision-proof: ultrasonic/IR coverage is limited and the robot has no rear obstacle sensor. Test with wheels raised first. A 400 ms joystick timeout and 650 ms link timeout also stop the robot.</p></section>
+  <div class="footer">© Educational BLE controller prototype • Disconnecting the phone stops the robot after its Arduino watchdog expires.</div>
+</main>
+<script>
+'use strict';
+// JDY-16 documented factory default BLE UUIDs (may have been changed by AT commands).
+const SERVICE_UUID = 0xFFE0;
+const DATA_UUID = 0xFFE1;
+const SEND_EVERY_MS = 120; // Send periodic joystick packets / auto heartbeat.
+const DEADZONE = 12;
+let device = null, characteristic = null, activeMode = 'MANUAL';
+let coords = {x:0,y:0}, heldPointer = null;
+let sending = false, urgentQueue = [], latestControl = null;
+let csvDownloadActive = false, csvDownloadStarted = false, csvReceiveBuffer = '', csvTimeout = null, csvExpectedBytes = -1, canReceiveData = false;
+const $ = id => document.getElementById(id);
+
+function connected(){return !!(device && device.gatt && device.gatt.connected && characteristic)}
+function activity(text){$('activity').textContent = text}
+function updateConnectUI(){
+  const on = connected();
+  $('connect').disabled = on;
+  $('disconnect').disabled = !on || csvDownloadActive;
+  $('manual').disabled = !on || csvDownloadActive;
+  $('auto').disabled = !on || csvDownloadActive;
+  $('stop').disabled = !on || csvDownloadActive;
+  $('downloadCsv').disabled = !on || csvDownloadActive || !canReceiveData;
+  $('status').textContent = on ? '● CONNECTED' : '● DISCONNECTED';
+  $('status').classList.toggle('connected',on);
+}
+function updateModeUI(){
+  $('manual').classList.toggle('active', activeMode==='MANUAL');
+  $('auto').classList.toggle('active', activeMode==='AUTO');
+  $('modeHelp').textContent=activeMode==='MANUAL' ? 'Manual: joystick controls left/right motor speed. Obstacle safety stays enabled.' : 'Auto: original obstacle avoidance decisions. The phone sends heartbeats; missing heartbeats trigger a stop.';
+  $('zone').style.opacity=activeMode==='MANUAL'?'1':'.46';
+}
+function updateJoystickUI(){
+  const r=$('zone').getBoundingClientRect(), travel=r.width*0.36;
+  $('thumb').style.left=`calc(50% + ${coords.x*travel/100}px)`;
+  $('thumb').style.top=`calc(50% - ${coords.y*travel/100}px)`;
+  $('xval').textContent=coords.x;$('yval').textContent=coords.y;
+  const x=Math.abs(coords.x)<=DEADZONE?0:coords.x;
+  const y=Math.abs(coords.y)<=DEADZONE?0:coords.y;
+  let name='STOP';
+  if(x||y){name=Math.abs(y)>Math.abs(x)*1.4?(y>0?'FORWARD':'BACKWARD'):
+    Math.abs(x)>Math.abs(y)*1.4?(x>0?'RIGHT':'LEFT'):'CURVE';}
+  $('direction').textContent=activeMode==='AUTO'?'AUTO':name;
+  const left=Math.max(-100,Math.min(100,y+x));
+  const right=Math.max(-100,Math.min(100,y-x));
+  function motorLabel(v){return activeMode==='AUTO'?'AUTO':Math.abs(v)<=DEADZONE?'STOP':(v>0?'FWD ':'REV ')+Math.abs(v)+'%'}
+  $('leftMotor').textContent=motorLabel(left);$('rightMotor').textContent=motorLabel(right);
+}
+function setCoords(x,y){
+  coords.x=Math.max(-100,Math.min(100,Math.round(x)));
+  coords.y=Math.max(-100,Math.min(100,Math.round(y)));
+  updateJoystickUI();
+}
+function resetJoystick(sendZero=true){
+  heldPointer=null;setCoords(0,0);
+  if(sendZero && connected() && activeMode==='MANUAL') postUrgent('J,0,0\n');
+}
+function postLatest(text){latestControl=text;void pump()}
+function postUrgent(text){latestControl=null;urgentQueue.push(text);void pump()}
+async function pump(){
+  if(sending || !connected()) return;
+  sending=true;
+  try {
+    while(connected() && (urgentQueue.length || latestControl!==null)){
+      let packet;
+      if(urgentQueue.length) packet=urgentQueue.shift();
+      else {packet=latestControl;latestControl=null}
+      const bytes=new TextEncoder().encode(packet);
+      if(characteristic.properties.writeWithoutResponse && characteristic.writeValueWithoutResponse){
+        await characteristic.writeValueWithoutResponse(bytes);
+      } else if(characteristic.properties.write && characteristic.writeValueWithResponse){
+        await characteristic.writeValueWithResponse(bytes);
+      } else if(characteristic.writeValue){
+        await characteristic.writeValue(bytes); // compatibility with earlier browsers
+      } else throw Error('FFE1 is not writable');
+      activity('Sent: '+packet.trim());
+    }
+  } catch(error){activity('Bluetooth write failed: '+(error.message||error));}
+  finally {sending=false}
+}
+function setCsvStatus(message){$('downloadStatus').textContent=message}
+function updateCsvProgress(received, total, state='downloading'){
+  const wrap=$('csvProgressWrap'), fill=$('csvProgressFill'), track=$('csvProgressTrack');
+  wrap.style.display='block';
+  fill.className='progress-fill';
+  if(state==='waiting'){
+    fill.classList.add('indeterminate');$('csvProgressLabel').textContent='Waiting for robot…';$('csvProgressPercent').textContent='—';
+    track.removeAttribute('aria-valuenow');return;
+  }
+  const percent=total>0?Math.min(100,Math.floor(received/total*100)):(state==='complete'?100:0);
+  fill.style.width=percent+'%';$('csvProgressPercent').textContent=percent+'%';
+  $('csvProgressLabel').textContent=received.toLocaleString()+' / '+total.toLocaleString()+' bytes';
+  track.setAttribute('aria-valuenow',String(percent));
+  if(state==='complete'){fill.classList.add('complete');$('csvProgressLabel').textContent='Download complete';$('csvProgressPercent').textContent='100%';fill.style.width='100%';track.setAttribute('aria-valuenow','100');}
+  if(state==='failed')fill.classList.add('failed');
+}
+function finishCsvDownload(success, message){
+  if(csvTimeout!==null){clearTimeout(csvTimeout);csvTimeout=null;}
+  csvDownloadActive=false;
+  updateConnectUI();
+  $('downloadCsv').textContent='⬇ Download CSV Logs';
+  if(success){
+    updateCsvProgress(csvExpectedBytes,csvExpectedBytes,'complete');
+    const blob=new Blob([csvReceiveBuffer],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='robot.csv';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    setCsvStatus('Download complete. robot.csv was saved by your browser.');
+  }else{
+    if(csvExpectedBytes>=0)updateCsvProgress(Math.min(new TextEncoder().encode(csvReceiveBuffer).length,csvExpectedBytes),csvExpectedBytes,'failed');
+    else updateCsvProgress(0,0,'failed');
+    setCsvStatus(message||'CSV download failed.');
+  }
+  csvReceiveBuffer='';csvDownloadStarted=false;csvExpectedBytes=-1;
+}
+function handleBluetoothData(event){
+  const incoming=new TextDecoder().decode(event.target.value);
+  if(!csvDownloadActive){activity('Received: '+incoming.trim().slice(0,80));return;}
+  csvReceiveBuffer+=incoming;
+
+  if(!csvDownloadStarted){
+    const error=csvReceiveBuffer.indexOf('#CSV_ERROR_');
+    const begin=csvReceiveBuffer.indexOf('#CSV_BEGIN,');
+    if(error>=0 && (begin<0 || error<begin)){
+      const lineEnd=csvReceiveBuffer.indexOf('\n',error);
+      if(lineEnd>=0){finishCsvDownload(false,csvReceiveBuffer.slice(error,lineEnd).replace('\r',''));}
+      return;
+    }
+    if(begin>=0){
+      const headerEnd=csvReceiveBuffer.indexOf('\n',begin);
+      if(headerEnd>=0){
+        const header=csvReceiveBuffer.slice(begin,headerEnd).replace('\r','');
+        const size=Number(header.substring('#CSV_BEGIN,'.length));
+        if(!Number.isSafeInteger(size)||size<0){finishCsvDownload(false,'The robot sent an invalid CSV file size.');return;}
+        csvExpectedBytes=size;
+        csvReceiveBuffer=csvReceiveBuffer.slice(headerEnd+1);
+        csvDownloadStarted=true;
+        // At 9600-baud UART, allow generous transfer time plus startup margin.
+        if(csvTimeout!==null)clearTimeout(csvTimeout);
+        const transferTimeout=Math.min(60*60*1000,Math.max(60000,Math.ceil(size/600*1000)+30000));
+        csvTimeout=setTimeout(()=>finishCsvDownload(false,'Timed out while receiving robot.csv. Reconnect and try again.'),transferTimeout);
+        updateCsvProgress(0,size);
+        setCsvStatus('Receiving robot.csv. Keep the page open until the transfer finishes.');
+      }
+    }
+  }
+  if(csvDownloadStarted){
+    const receivedBytes=Math.min(new TextEncoder().encode(csvReceiveBuffer).length,csvExpectedBytes);
+    updateCsvProgress(receivedBytes,csvExpectedBytes);
+    const end=csvReceiveBuffer.indexOf('\n#CSV_END\n');
+    if(end>=0){
+      const csv=csvReceiveBuffer.slice(0,end);
+      if(csv.length!==csvExpectedBytes){
+        finishCsvDownload(false,'Incomplete CSV transfer: expected '+csvExpectedBytes+' bytes but received '+csv.length+'.');
+      }else{
+        csvReceiveBuffer=csv;
+        finishCsvDownload(true);
+      }
+    }
+  }
+}
+function beginCsvDownload(){
+  if(!connected()||csvDownloadActive)return;
+  if(!canReceiveData){setCsvStatus('This JDY-16 connection does not expose BLE notifications, so the website cannot receive the CSV file. Robot controls remain available.');return;}
+  csvDownloadActive=true;csvDownloadStarted=false;csvReceiveBuffer='';
+  activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();
+  $('downloadCsv').disabled=true;$('downloadCsv').textContent='Receiving CSV…';
+  updateCsvProgress(0,0,'waiting');
+  setCsvStatus('Request sent. The robot will stop while its SD card log is transferred.');
+  updateConnectUI();
+  csvTimeout=setTimeout(()=>finishCsvDownload(false,'Timed out waiting for the CSV file. Check the BLE notification support and reconnect.'),60000);
+  postUrgent('D\n');
+}
+$('downloadCsv').addEventListener('click',beginCsvDownload);
+
+function onDisconnected(){
+  if(csvDownloadActive)finishCsvDownload(false,'Bluetooth disconnected before the CSV download completed.');
+  characteristic=null;device=null;canReceiveData=false;urgentQueue=[];latestControl=null;
+  resetJoystick(false);activeMode='MANUAL';updateModeUI();updateJoystickUI();updateConnectUI();
+  activity('Disconnected. Arduino watchdog will stop motors.');
+}
+$('connect').addEventListener('click',async()=>{
+  if(!navigator.bluetooth){activity('Web Bluetooth not available. Open this page through HTTPS in Chrome for Android.');return}
+  try{
+    activity('Choose JDY-16 from the BLE device picker...');
+    // requestDevice MUST be invoked as a direct result of tapping Connect.
+    const chosen=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SERVICE_UUID]});
+    chosen.addEventListener('gattserverdisconnected',onDisconnected);
+    device=chosen; // Keep a reference so errors can disconnect cleanly.
+    const server=await chosen.gatt.connect();
+    const service=await server.getPrimaryService(SERVICE_UUID);
+    const found=await service.getCharacteristic(DATA_UUID);
+    if(!found.properties.write && !found.properties.writeWithoutResponse){
+      throw Error('FFE1 does not report write support; check module UUID configuration.');
+    }
+    canReceiveData=false;
+    if(found.properties.notify || found.properties.indicate){
+      try{
+        await found.startNotifications();
+        found.addEventListener('characteristicvaluechanged',handleBluetoothData);
+        canReceiveData=true;
+      }catch(notificationError){
+        canReceiveData=false; // Keep ordinary joystick control available even if receive is unsupported.
+      }
+    }
+    device=chosen;characteristic=found;activeMode='MANUAL';resetJoystick(false);
+    updateModeUI();updateConnectUI();
+    postUrgent('M\n');postUrgent('J,0,0\n');
+    activity('Connected to '+(device.name||'BLE device')+'; MANUAL and STOP sent.'+(canReceiveData?' CSV download ready.':' CSV download unavailable: BLE notifications not supported.'));
+  } catch(error){
+    activity('Connection failed: '+(error.message||error)+'. Verify JDY-16 default UUIDs and that no other app is connected.');
+    if(device && device.gatt && device.gatt.connected)device.gatt.disconnect();
+    onDisconnected();
+  }
+});
+$('disconnect').addEventListener('click',()=>{
+  if(!connected())return;
+  postUrgent('S\n');
+  const toDisconnect=device;
+  // Allow the STOP packet an opportunity to transmit; watchdog is backup.
+  setTimeout(()=>{if(toDisconnect && toDisconnect.gatt.connected)toDisconnect.gatt.disconnect()},250);
+});
+$('manual').addEventListener('click',()=>{
+  if(csvDownloadActive)return;
+  activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();
+  if(connected()){postUrgent('M\n');postUrgent('J,0,0\n')}
+});
+$('auto').addEventListener('click',()=>{
+  if(csvDownloadActive)return;
+  activeMode='AUTO';resetJoystick(false);updateModeUI();updateJoystickUI();
+  if(connected())postUrgent('A\n');
+});
+$('stop').addEventListener('click',()=>{
+  if(csvDownloadActive)return;
+  activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();
+  if(connected())postUrgent('S\n');
+  else activity('Not connected; robot should remain stopped.');
+});
+const zone=$('zone');
+function positionFromPointer(e){
+  const r=zone.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  let dx=e.clientX-cx,dy=cy-e.clientY;
+  const maxRadius=r.width*.36;
+  const distance=Math.hypot(dx,dy);
+  if(distance>maxRadius){dx=dx*maxRadius/distance;dy=dy*maxRadius/distance}
+  setCoords(dx/maxRadius*100,dy/maxRadius*100);
+}
+zone.addEventListener('pointerdown',e=>{
+  if(csvDownloadActive||activeMode!=='MANUAL')return;
+  e.preventDefault();heldPointer=e.pointerId;
+  zone.setPointerCapture(e.pointerId);positionFromPointer(e);
+});
+zone.addEventListener('pointermove',e=>{
+  if(activeMode!=='MANUAL'||heldPointer!==e.pointerId)return;
+  e.preventDefault();positionFromPointer(e);
+});
+function release(e){
+  if(heldPointer!==e.pointerId)return;
+  resetJoystick(true);
+}
+zone.addEventListener('pointerup',release);
+zone.addEventListener('pointercancel',release);
+zone.addEventListener('lostpointercapture',release);
+setInterval(()=>{
+  if(!connected() || csvDownloadActive)return;
+  if(activeMode==='MANUAL')postLatest(`J,${coords.x},${coords.y}\n`);
+  else postLatest('H\n');
+},SEND_EVERY_MS);
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){activeMode='MANUAL';resetJoystick(false);updateModeUI();updateJoystickUI();if(connected())postUrgent('S\n')}
+});
+window.addEventListener('pagehide',()=>{if(connected())postUrgent('S\n')});
+updateConnectUI();updateModeUI();updateJoystickUI();
+if(!window.isSecureContext)activity('This file must be hosted on HTTPS (e.g., GitHub Pages) for Chrome Bluetooth access.');
+</script>
+</body>
+</html>
